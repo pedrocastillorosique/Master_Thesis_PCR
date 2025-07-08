@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+             "args": [
+                // PITAGORAS
+                "--inputPath", "D:/Pitagoras/Spatia_seq/Dataset/PITAGORAS/GIN-65-3T-2/outs/",
+                // preprocess_cell_module.py
+                "--annotation_method", "QuPath",
+                "--annoFile", "Image_cell_segmentation.txt"
+                // TEST-DATA
+                // "--inputPath", "D:/Pitagoras/Spatia_seq/Dataset/ARTICULOS//DLPFC_151507/",
+                // "--Hismodel", "ResNet50",
+                // preprocess_cell_module.py
+                // "--annoFile", "Image_cell_segmentation.txt"
+                // DLPFC
+                // "--inputPath", "D:/Pitagoras/Spatia_seq/Dataset/ARTICULOS/DLPFC/", 
+                // "--Hismodel", "ResNet50"
+
+            ],
+            "name": "vscDebugger",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}

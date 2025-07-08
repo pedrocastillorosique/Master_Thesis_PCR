@@ -1,0 +1,523 @@
+---
+title: "Deconvolution"
+output: html_notebook
+---
+
+```{r}
+library(spacexr)
+library(anndata)
+library(Seurat)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(tidyr)
+
+my_colors <- c(
+  "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00",
+  "#FFFF33", "#A65628", "#F781BF", "#999999", "#66C2A5",
+  "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854", "#FFD92F",
+  "#B3B3B3", "#B15928", "#CAB2D6", "#1F78B4", "#33A02C"
+)
+
+scale_fill_manual(values = my_colors)
+```
+
+Juntamos la deconvolución celular del RTCD con el Objeto Seurat
+
+```{r}
+
+dataPath = "D:/Pitagoras/Spatia_seq/Dataset/PITAGORAS/GIN-63-3T-4/outs"
+## Obtener matriz de spot/célula y la proporción de cada tipo celular
+deconvolution = readRDS("D:/Pitagoras/Spatia_seq/Dataset/PITAGORAS/Datos_Pedro/Resultados_RCTD/myRCTD_63.rds")
+
+spot_names = colnames(deconvolution@spatialRNA@counts)
+
+weight_list <- lapply(deconvolution@results, function(x) x$all_weights)
+cell_type_matrix <- do.call(rbind, weight_list)
+
+rownames(cell_type_matrix) <- spot_names
+
+## Cargar el objeto Seurat con la imagen de secuenciación. 
+seurat_object = Load10X_Spatial(data.dir=  dataPath)
+
+## Cargamos el excel con el cluster de la anotiación de cada spot venida de stKeep  Image_cell_segmentation.txt
+anno = read.table(paste0(dataPath,"/Image_cell_segmentation.txt"), header = T, row.names = 1, sep = "\t")
+anno$Layer[anno$Layer == "cluster3"] <- "Border"
+
+seurat_object <- AddMetaData(
+  object = seurat_object,
+  metadata = anno$Layer[match(colnames(seurat_object), rownames(anno))],
+  col.name = "Spot_cluster"
+)
+
+# Nos aseguramos que las columnas de spot coinciden
+cell_type_matrix <- cell_type_matrix[match(colnames(seurat_object), row.names(cell_type_matrix)), ]
+# Quitamos los valores NaN
+cell_type_matrix[is.na(cell_type_matrix)] <- 0
+
+rctd_assay <- CreateAssayObject(data = t(cell_type_matrix))
+seurat_object[["RCTD"]] <- rctd_assay
+
+deconv_mat <- seurat_object@assays$RCTD$data
+deconv_df <- as.data.frame(t(deconv_mat))
+seurat_object@meta.data <- cbind(seurat_object@meta.data, deconv_df)
+```
+
+```{r}
+SpatialPlot(seurat_object, group.by="Spot_cluster") + ggtitle("Anotación AP") + theme_minimal() + guides(fill = guide_legend(override.aes = list(size = 3)))
+```
+
+Ahora cargamos el clustering venido de Bayes Space en el objeto Seurat
+
+```{r}
+## Cargamos otra anotación, por ejemplo del BayesSpace
+bayes_object <- readRDS("D:/Pitagoras/Spatia_seq/Dataset/PITAGORAS/Datos_Pedro/Objetos_Bayes_VDJ/seurat_63_VDJ_with_bayesCluster_fixed.rds")
+
+BayesSpace = bayes_object$bayes_cluster[match(colnames(seurat_object), colnames(bayes_object))]
+
+# seurat_object$BayesSpace <- as.numeric(as.character(BayesSpace))
+seurat_object$BayesSpace <- BayesSpace
+
+# Hacemos una relación entre la anotación de AP y los clusters.
+AP_BayesSpace <- data.frame(
+  BayesSpace = as.character(1:8),
+  Category = c("Estroma", "Tumor", "Tumor", "Border", "Border", "Tumor", "Tumor", "Border")
+)
+```
+
+```{r}
+
+SpatialPlot(seurat_object, group.by="BayesSpace") + ggtitle("Spatial Cluster") + theme_minimal() + guides(fill = guide_legend(override.aes = list(size = 3))) + scale_fill_manual(values = my_colors)
+```
+
+Mostramos la proporción de algunos tipos celulares de interés: tejido maligno, células B y células T
+
+```{r}
+# Mostramos la proporción de cada tipo celular en la muestra
+SpatialFeaturePlot(seurat_object, features = "T-cell") + ggtitle("T cell proportion") +
+  theme_minimal()
+```
+
+```{r}
+SpatialFeaturePlot(seurat_object, features = "B-cell") + ggtitle("B cell proportion") +
+  theme_minimal()
+```
+
+```{r}
+SpatialFeaturePlot(seurat_object, features = "Malignant") + ggtitle("Malignant proportion") +
+  theme_minimal()
+```
+
+Vamos a hacer un diagrama de barras mostrando la proporción según la anotación del AP
+
+```{r}
+# 1. Extraer matriz de proporciones del assay "RCTD"
+prop_matrix <- GetAssayData(seurat_object, assay = "RCTD", slot = "data")
+
+# 2. Transponer para tener spots como filas (spots x cell types)
+prop_df <- t(as.matrix(prop_matrix))
+
+# 3. Normalizar cada fila (spot) para que sume exactamente 1
+prop_df_norm <- prop_df / rowSums(prop_df)
+
+# 4. Convertir a data.frame y agregar anotación del clúster
+prop_df_norm <- as.data.frame(prop_df_norm)
+prop_df_norm$Spot <- rownames(prop_df_norm)
+prop_df_norm$Spot_cluster <- seurat_object$Spot_cluster[match(rownames(prop_df_norm), colnames(seurat_object))]
+
+# 5. Convertir a formato largo (tidy)
+long_df <- prop_df_norm %>%
+  pivot_longer(cols = -c(Spot, Spot_cluster), names_to = "Cell_type", values_to = "Proportion")
+
+# 6. Calcular proporciones promedio por clúster
+summary_df <- long_df %>%
+  group_by(Spot_cluster, Cell_type) %>%
+  summarise(Mean_proportion = mean(Proportion, na.rm = TRUE), .groups = "drop")
+
+# Quitamos las filas de Cluster 3
+summary_df <- summary_df[summary_df$Spot_cluster != "cluster3", ]
+
+```
+
+```{r}
+# 7. Graficar barras apiladas por clúster
+ggplot(summary_df, aes(x = Spot_cluster, y = Mean_proportion, fill = Cell_type)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values = my_colors) +
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Distribución promedio de tipos celulares por clúster (normalizada)",
+    x = "Clúster anotado",
+    y = "Proporción promedio (normalizada)",
+    fill = "Tipo celular"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Mostramos la proporción de tipos celulares según los clusters de BayesSpace
+
+```{r}
+
+# 1. Extraer matriz de proporciones del assay "RCTD"
+prop_matrix <- GetAssayData(seurat_object, assay = "RCTD", slot = "data")
+
+# 2. Transponer para tener spots como filas (spots x cell types)
+prop_df <- t(as.matrix(prop_matrix))
+
+# 3. Normalizar cada fila (spot) para que sume exactamente 1
+prop_df_norm <- prop_df / rowSums(prop_df)
+
+# 4. Convertir a data.frame y agregar anotación del clúster
+prop_df_norm <- as.data.frame(prop_df_norm)
+prop_df_norm$Spot <- rownames(prop_df_norm)
+
+prop_df_norm$BayesSpace <- seurat_object$BayesSpace[match(rownames(prop_df_norm), colnames(seurat_object))]
+
+# 5. Convertir a formato largo (tidy)
+long_df <- prop_df_norm %>%
+  pivot_longer(cols = -c(Spot, BayesSpace), names_to = "Cell_type", values_to = "Proportion")
+
+# 6. Calcular proporciones promedio por clúster
+summary_df <- long_df %>%
+  group_by(BayesSpace, Cell_type) %>%
+  summarise(Mean_proportion = mean(Proportion, na.rm = TRUE), .groups = "drop")
+
+AP_Bayes_df <- merge(summary_df, AP_BayesSpace, by = "BayesSpace")
+```
+
+```{r}
+ggplot(AP_Bayes_df, aes(x = BayesSpace, y = Cell_type, fill = Mean_proportion)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", Mean_proportion)), size = 3) +
+  scale_fill_gradient(low = "mintcream", high = "lightcoral", name = "Proporción") + 
+  facet_grid(. ~ Category, scales = "free_x", space = "free_x") +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1),
+    axis.title = element_blank(),
+    panel.grid = element_blank()
+  ) +
+  labs(title = "Distribución de tipos celulares por clúster") + 
+  theme(
+    strip.text = ggtext::element_markdown(face = "bold", size = 9),
+    strip.background = element_rect(fill = "#a1d99b", color = "black", size = 0.5),
+  )
+```
+
+Vamos a continuar cargando en el metadata los clones
+
+```{r}
+
+library("readxl")
+spatial_matrix <- read_xlsx("D:/Pitagoras/Spatia_seq/Dataset/PITAGORAS/Datos_Pedro/Clonotipos_SPATIAL/GIN_63_spatial_clonotype_counts_filtered.xlsx")
+
+# Asegúrate de que es un data.frame
+spatial_matrix_df <- as.data.frame(spatial_matrix)
+
+# Establecer la primera columna como rownames
+rownames(spatial_matrix_df) <- paste0(spatial_matrix_df[[1]], "-1")
+# Eliminar la primera columna
+spatial_matrix_df <- spatial_matrix_df[ , -1]
+
+# Filtrar las filas para que coincidan con las del SeuratObject
+common_barcodes <- intersect(rownames(spatial_matrix_df), colnames(seurat_object))
+
+# Filtrar y reordenar
+spatial_matrix_df <- spatial_matrix_df[common_barcodes, ]
+spatial_matrix_df <- spatial_matrix_df[colnames(seurat_object), , drop = T]  # 
+
+seurat_object <- AddMetaData(seurat_object, spatial_matrix_df)
+```
+
+```{r}
+SpatialFeaturePlot(seurat_object, features = c("clone8"), pt.size.factor = 3) &
+  scale_fill_gradient2(low = "white", mid = "blue", high = "red", midpoint = .5) &   scale_alpha_continuous(range=c(0,2)) 
+```
+
+```{r}
+SpatialFeaturePlot(seurat_object, features = "clone14", pt.size.factor = 3) &
+  scale_fill_gradient2(low = "white", mid = "blue", high = "red", midpoint = 0.5) &   scale_alpha_continuous(range=c(0,1)) 
+```
+
+```{r}
+SpatialFeaturePlot(seurat_object, features = "clone7", pt.size.factor = 3) &
+  scale_fill_gradient2(low = "white", mid = "blue", high = "red", midpoint = 0.5) &   scale_alpha_continuous(range=c(0,2)) 
+```
+
+```{r}
+
+SpatialFeaturePlot(seurat_object, features = "clone0", pt.size.factor = 3) &
+  scale_fill_gradient2(low = "white", mid = "blue", high = "red", midpoint = 0.5) &   scale_alpha_continuous(range=c(0,25))
+```
+
+```{r}
+# Definir los clones
+clones <- colnames(spatial_matrix_df)
+
+# Crear tabla combinada
+tabla <- data.frame(cell_id = colnames(seurat_object))
+
+# Agregar columnas de clones
+for (clon in clones) {
+  tabla[[clon]] <- seurat_object[[clon]][,1]
+}
+
+
+tabla$BayesSpace <- seurat_object$BayesSpace[match(tabla$cell_id, colnames(seurat_object))]
+
+
+# 5. Convertir a formato largo (tidy)
+tabla_long_df <- tabla %>%
+  pivot_longer(cols = -c(cell_id, BayesSpace), names_to = "clones", values_to = "value")
+
+# 6. Calcular proporciones promedio por clúster
+summary_tabla_long_df <- tabla_long_df %>%
+  group_by(BayesSpace, clones) %>%
+  summarise(counts = sum(value, na.rm = TRUE), .groups = "drop")
+
+AP_Bayes_clones_df <- merge(summary_tabla_long_df, AP_BayesSpace, by = "BayesSpace")
+```
+
+```{r}
+
+ggplot(AP_Bayes_clones_df, aes(x = BayesSpace, y = clones, fill = counts)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", counts)), size = 3) +
+  scale_fill_gradient(low = "mintcream", high = "lightcoral", name = "Cuentas") + 
+  facet_grid(. ~ Category, scales = "free_x", space = "free_x") +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1),
+    axis.title = element_blank(),
+    panel.grid = element_blank()
+  ) +
+  labs(title = "Distribución de clones por clúster") + 
+  theme(
+    strip.text = ggtext::element_markdown(face = "bold", size = 9),
+    strip.background = element_rect(fill = "#a1d99b", color = "black", size = 0.5),
+  )
+```
+
+Volvemos a hacer lo mismo para el clustering de stKeep
+
+```{r}
+stKeep_object = read_h5ad("D:/Pitagoras/Spatia_seq/Dataset/PITAGORAS/GIN-63-3T-4/outs/stKeep/stKeep_GIN-63.rds")
+
+stKeep_cluster = stKeep_object$obs$mclust[match(colnames(seurat_object), rownames(stKeep_object))]
+
+# seurat_object$BayesSpace <- as.numeric(as.character(BayesSpace))
+seurat_object$stKeep_cluster <- stKeep_cluster
+
+# Hacemos una relación entre la anotación de AP y los clusters.
+AP_stKeep <- data.frame(
+  stKeep_cluster = as.character(1:8),
+  Category = c("Estroma", "Tumor", "Tumor", "Border", "Border", "Tumor", "Tumor", "Border")
+)
+```
+
+```{r}
+SpatialDimPlot(seurat_object, group.by = "stKeep_cluster", label.size = 3) + ggtitle("Spatial Cluster") + theme_minimal() + guides(fill = guide_legend(override.aes = list(size = 3))) + scale_fill_manual(values = my_colors)
+```
+
+```{r}
+
+# 1. Extraer matriz de proporciones del assay "RCTD"
+prop_matrix <- GetAssayData(seurat_object, assay = "RCTD", slot = "data")
+
+# 2. Transponer para tener spots como filas (spots x cell types)
+prop_df <- t(as.matrix(prop_matrix))
+
+# 3. Normalizar cada fila (spot) para que sume exactamente 1
+prop_df_norm <- prop_df / rowSums(prop_df)
+
+# 4. Convertir a data.frame y agregar anotación del clúster
+prop_df_norm <- as.data.frame(prop_df_norm)
+prop_df_norm$Spot <- rownames(prop_df_norm)
+
+prop_df_norm$stKeep_cluster <- seurat_object$stKeep_cluster[match(rownames(prop_df_norm), colnames(seurat_object))]
+
+# 5. Convertir a formato largo (tidy)
+long_df <- prop_df_norm %>%
+  pivot_longer(cols = -c(Spot, stKeep_cluster), names_to = "Cell_type", values_to = "Proportion")
+
+# 6. Calcular proporciones promedio por clúster
+summary_df <- long_df %>%
+  group_by(stKeep_cluster, Cell_type) %>%
+  summarise(Mean_proportion = mean(Proportion, na.rm = TRUE), .groups = "drop")
+
+AP_stKeep_df <- merge(summary_df, AP_stKeep, by = "stKeep_cluster")
+```
+
+```{r}
+
+ggplot(AP_stKeep_df, aes(x = stKeep_cluster, y = Cell_type, fill = Mean_proportion)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", Mean_proportion)), size = 3) +
+  scale_fill_gradient(low = "mintcream", high = "lightcoral", name = "Proporción") + 
+  facet_grid(. ~ Category, scales = "free_x", space = "free_x") +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1),
+    axis.title = element_blank(),
+    panel.grid = element_blank()
+  ) +
+  labs(title = "Distribución de clones por clúster") + 
+  theme(
+    strip.text = ggtext::element_markdown(face = "bold", size = 9),
+    strip.background = element_rect(fill = "#a1d99b", color = "black", size = 0.5),
+  )
+```
+
+```{r}
+
+# Definir los clones
+clones <- colnames(spatial_matrix_df)
+
+# Crear tabla combinada
+tabla <- data.frame(cell_id = colnames(seurat_object))
+
+# Agregar columnas de clones
+for (clon in clones) {
+  tabla[[clon]] <- seurat_object[[clon]][,1]
+}
+
+
+tabla$stKeep_cluster <- seurat_object$stKeep_cluster[match(tabla$cell_id, colnames(seurat_object))]
+
+
+# 5. Convertir a formato largo (tidy)
+tabla_long_df <- tabla %>%
+  pivot_longer(cols = -c(cell_id, stKeep_cluster), names_to = "clones", values_to = "value")
+
+# 6. Calcular proporciones promedio por clúster
+summary_tabla_long_df <- tabla_long_df %>%
+  group_by(stKeep_cluster, clones) %>%
+  summarise(counts = sum(value, na.rm = TRUE), .groups = "drop")
+
+summary_tabla_long_df$stKeep_cluster = as.factor(as.numeric(summary_tabla_long_df$stKeep_cluster))
+AP_stKeep_clones_df <- merge(summary_tabla_long_df, AP_stKeep, by = "stKeep_cluster")
+```
+
+```{r}
+
+ggplot(AP_stKeep_clones_df, aes(x = stKeep_cluster, y = clones, fill = counts)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", counts)), size = 3) +
+  scale_fill_gradient(low = "mintcream", high = "lightcoral", name = "Cuentas") + 
+  facet_grid(. ~ Category, scales = "free_x", space = "free_x") +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1),
+    axis.title = element_blank(),
+    panel.grid = element_blank()
+  ) +
+  labs(title = "Distribución de clones por clúster") + 
+  theme(
+    strip.text = ggtext::element_markdown(face = "bold", size = 9),
+    strip.background = element_rect(fill = "#a1d99b", color = "black", size = 0.5),
+  )
+```
+
+Volvemos a hacer lo mismo para el clustering de graphST
+
+```{r}
+stKeep_object = read_h5ad("D:/Pitagoras/Spatia_seq/Dataset/PITAGORAS/GIN-63-3T-4/outs/graphST/GIN-63-3T-4.h5ad")  
+
+graphST = stKeep_object$obs$mclust[match(colnames(seurat_object), rownames(stKeep_object))]  
+
+#seurat_object$BayesSpace <- as.numeric(as.character(BayesSpace))
+seurat_object$graphST <- graphST
+
+# Hacemos una relación entre la anotación de AP y los clusters. 
+SpatialDimPlot(seurat_object, group.by = "graphST", label.size = 3) + ggtitle("Spatial Cluster") + theme_minimal() + guides(fill = guide_legend(override.aes = list(size = 3))) + scale_fill_manual(values = my_colors)
+
+AP_graphST <- data.frame(graphST = as.character(1:8), Category = c("Borde", "Estroma", "Tumor", "Tumor", "Tumor", "Tumor", "Borde", "Borde") )
+```
+
+```{r}
+# 1. Extraer matriz de proporciones del assay "RCTD" 
+prop_matrix <- GetAssayData(seurat_object, assay = "RCTD", slot = "data")  
+# 2. Transponer para tener spots como filas (spots x cell types) 
+prop_df <- t(as.matrix(prop_matrix))  
+# 3. Normalizar cada fila (spot) para que sume exactamente 1 
+prop_df_norm <- prop_df / rowSums(prop_df)  
+# 4. Convertir a data.frame y agregar anotación del clúster 
+prop_df_norm <- as.data.frame(prop_df_norm) 
+prop_df_norm$Spot <- rownames(prop_df_norm)  
+prop_df_norm$graphST <- seurat_object$graphST[match(rownames(prop_df_norm), colnames(seurat_object))]  
+# 5. Convertir a formato largo (tidy) 
+long_df <- prop_df_norm %>%   
+  pivot_longer(cols = -c(Spot, graphST), 
+               names_to = "Cell_type", 
+               values_to = "Proportion")  
+# 6. Calcular proporciones promedio por clúster 
+summary_df <- long_df %>%   group_by(graphST, Cell_type) %>%   summarise(Mean_proportion = mean(Proportion, na.rm = TRUE), .groups = "drop")  
+AP_graphST_df <- merge(summary_df, AP_graphST, by = "graphST")
+```
+
+```{r}
+ggplot(AP_graphST_df, 
+       aes(x = graphST, y = Cell_type, fill = Mean_proportion)) +  
+  geom_tile(color = "white") +   
+  geom_text(aes(label = sprintf("%.2f", Mean_proportion)), size = 3) +
+  scale_fill_gradient(low = "mintcream", high = "lightcoral", name = "Proporción")+
+  facet_grid(. ~ Category, scales = "free_x", space = "free_x") +   
+  theme_minimal(base_size = 14) +   
+  theme(axis.text.x = element_text(angle = 0, hjust = 1),
+        axis.title = element_blank(),    
+        panel.grid = element_blank()   ) +
+  labs(title = "Distribución de clones por clúster") +    
+  theme(strip.text = ggtext::element_markdown(face = "bold", size = 7),
+        strip.background = element_rect(fill = "#a1d99b", 
+                                        color = "black", 
+                                        size = 0.5),   )
+```
+
+```{r}
+# Definir los clones
+clones <- colnames(spatial_matrix_df)
+
+# Crear tabla combinada
+tabla <- data.frame(cell_id = colnames(seurat_object))
+
+# Agregar columnas de clones
+for (clon in clones) {
+  tabla[[clon]] <- seurat_object[[clon]][,1]
+}
+
+
+tabla$graphST <- seurat_object$graphST[match(tabla$cell_id, colnames(seurat_object))]
+
+
+# 5. Convertir a formato largo (tidy)
+tabla_long_df <- tabla %>%
+  pivot_longer(cols = -c(cell_id, graphST), names_to = "clones", values_to = "value")
+
+# 6. Calcular proporciones promedio por clúster
+summary_tabla_long_df <- tabla_long_df %>%
+  group_by(graphST, clones) %>%
+  summarise(counts = sum(value, na.rm = TRUE), .groups = "drop")
+
+summary_tabla_long_df$graphST = as.factor(as.numeric(summary_tabla_long_df$graphST))
+AP_graphST_clones_df <- merge(summary_tabla_long_df, AP_graphST, by = "graphST")
+```
+
+```{r}
+
+ggplot(AP_graphST_clones_df, aes(x = graphST, y = clones, fill = counts)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", counts)), size = 3) +
+  scale_fill_gradient(low = "mintcream", high = "lightcoral", name = "Cuentas") + 
+  facet_grid(. ~ Category, scales = "free_x", space = "free_x") +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1),
+    axis.title = element_blank(),
+    panel.grid = element_blank()
+  ) +
+  labs(title = "Distribución de clones por clúster") + 
+  theme(
+    strip.text = ggtext::element_markdown(face = "bold", size = 9),
+    strip.background = element_rect(fill = "#a1d99b", color = "black", size = 0.5),
+  )
+```
