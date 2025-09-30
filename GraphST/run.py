@@ -11,7 +11,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 ## it will be checked in anndata.obs['Region'] any annotation: 
 n_clusters = 7
 # Stablish path: 
-file_fold = r"D:\Pitagoras\Spatia_seq\Dataset\PITAGORAS"
+file_fold = r"...\Dataset\PITAGORAS"
 # Set radius to specify the number of neighbors considered during refinement
 radius = 50
 # Set clustering tool:
