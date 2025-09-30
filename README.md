@@ -1,25 +1,22 @@
-# Análisis Exploratorio de Datos de Transcriptómica Espacial para la Identificación de Poblaciones Celulares y Patrones Genéticos en el Microentorno Tumoral
+# Deep learning models that integrate transcriptomic and spatial information enable efficient reconstruction and clonal TCR analysis of the tumor microenvironment
 
-Este repositorio contiene el código empleado para la validación de los algoritmos Louvain, BayesSpace, conGi, GraphST y stKeep; y la implementación de GraphST sobre cuatro muestras secuenciadas espacialmente usando la tecnología Visium 10x, de cáncer de ovario, incluidas en el proyecto [PITAGORAS ](https://cima.cun.es/investigacion/proyecto-pitagoras). Para ello se ha usado la métrica ARI, sobre el clustering en 12 cortes del dataset [DLPFC](https://github.com/LieberInstitute/HumanPilot).
+This repository contains the code used to validate the [Louvain](https://doi.org/10.1038/s41598-019-41695-z), [BayesSpace](https://doi.org/10.1038/s41587-021-00935-2), [conGI](https://doi.org/10.1093/bib/bbad048), [GraphST](https://doi.org/10.1038/s41467-023-36796-3), and [stKeep](https://doi.org/10.1038/s41467-024-49171-7) algorithms, and implements GraphST on four 10x Visium–profiled ovarian cancer samples from the [PITAGORAS project](https://cima.cun.es/investigacion/proyecto-pitagoras).  
+Validation was performed using the ARI metric on clustering results from 12 slices of the [DLPFC dataset](https://github.com/LieberInstitute/HumanPilot).
 
-Este Trabajo de Fin de Máster ha tenido los siguientes objetivos: 
+## Objectives of this Master’s Thesis
 
-- OC1. Realizar una revisión bibliográfica centrada en el microentorno tumoral y en los algoritmos disponibles para el análisis de datos de spaRNA-seq.
-- OC2. Comparar el resultado de la identificación de dominios espaciales o clustering obtenido por diferentes algoritmos del estado del arte basados metodologías clásicas, en Machine Learning y Deep Learning, utilizando datos anotados de spaRNA-seq.
-- OC3. Usar el mejor algoritmo de clustering resultante de la comparación anterior (OC.2) sobre datos de spaRNA-seq de tumores de ovario, integrando sobre los dominios o clústeres obtenidos la información genética y espacial de clones de receptores de las células T (TCR) en linfocitos infiltrados de tumor (TIL, del inglés, tumor infiltrating lymphocytes), con el fin de identificar patrones relevantes en la distribución celular y expresión génica.
+- **OC1.** Conduct a literature review focused on the tumor microenvironment and algorithms available for spatial RNA-seq (spaRNA-seq) data analysis.  
+  <div align="center">
+    <img width="964" height="360" alt="Overview" src="https://github.com/user-attachments/assets/987422e2-43b6-4fb1-8e80-acf6caec7b4b" />
+  </div>
 
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/b7617747-0d33-4e52-834e-8de7af194fd1" alt="Ejemplo GraphST" width="500"/>
-</div>
+- **OC2.** Compare spatial domain identification (clustering) results obtained with state-of-the-art algorithms based on classical methods, Machine Learning, and Deep Learning, using annotated spaRNA-seq datasets.  
+  For this objective, each algorithm was implemented in its native language and environment. You can reproduce the runs by following the scripts provided in the corresponding folders.  
+  <div align="center">
+    <img width="964" height="500" alt="Algorithm comparison" src="https://github.com/user-attachments/assets/7e9749d3-51aa-400a-abd6-ba2da4341a2b" />
+  </div>
 
-A continuación, se muestra un ejemplo de clustering para los cortes 151507, 151510, 151669 y 151676:
-
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/24556198-432c-48f1-af48-64d143fd54e5" alt="Clustering por muestra" width="600"/>
-</div>
-
-Seguidamente, se aplicó el test de normalidad Shapiro-Wilk, ANOVA (dada su normalidad) y el test pareado de Tukey:
-
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/8a330606-981a-450c-9588-42031fee358d" alt="Comparación estadística" width="600"/>
-</div>
+- **OC3.** Apply the best-performing clustering algorithm from OC2 to ovarian tumor spaRNA-seq data, integrating genetic and spatial information on T-cell receptor (TCR) clones in tumor-infiltrating lymphocytes (TILs), to identify relevant patterns in cell distribution and gene expression.  
+  <div align="center">
+    <img width="963" height="587" alt="Application to ovarian cancer" src="https://github.com/user-attachments/assets/ded256a9-5817-420d-a5fb-8d601ed453a6" />
+  </div>
