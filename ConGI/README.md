@@ -13,6 +13,29 @@ This script executes the workflow step by step, calling the core modules of **co
 
 1. **[`run.py`](conGI/run.py)**
    - Automatically generates the embedding for the genes `{sample_name}_xg.npy` and image crops `{sample_name}_xi.npy` used for clustering analysis.
+      ```bash
+     args.epochs           = 10
+     args.dataset          = 'DLPFC'
+     args.gene_preprocess  = 'hvg'
+
+     # Gene preprocessing
+      args.gene_preprocess  = 'pca'            # ['pca', 'hvg']
+      args.n_gene           = 1000             # [300, 1000]
+
+     # Histology images
+      args.img_size         = 112              # patch size per spot (px)
+
+      # Model
+      args.last_dim         = 64               # latent embedding dimension
+      args.lr               = 0.003            # learning rate
+      args.p_drop           = 0.1              # dropout rate
+
+      # Loss weights (balance gene ↔ image contributions)
+      args.w_g2i            = 1.0              # gene-to-image alignment
+      args.w_g2g            = 0.2              # gene-to-gene consistency
+      args.w_i2i            = 0.2              # image-to-image consistency
+      args.w_recon          = 0.0              # reconstruction (0–0.1 if noisy data)
+      
 3. **[`eval.py`](conGI/eval.py)**
    - Automatically calculates the clustering using Mclust R function and calculates ARI metric. Finally saves the clustering as `{sample_name}.h5ad`.
 
