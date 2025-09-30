@@ -1,3 +1,43 @@
+# Modified stKeep:
+
+This repository is based on the original [stKeep](https://github.com/cmzuo11/stKeep) implementation by **Chunman Zuo and Luonan Chen**, with modifications to extend its functionality.  
+
+The modifications mainly adapt the workflow for the **DLPFC 12 slices** algorithm comparison.  
+
+---
+
+## Modifications in this repository  
+
+To simplify the comparison across the **12 DLPFC slices**, this repository includes an automation script: [`run.py`](stKeep/run.py).  
+This script executes the workflow step by step, calling the core modules of **stKeep** in sequence:  
+
+1. **[`Image_cell_segmentation.py`](stKeep/analysis/Image_cell_segmentation.py)**  
+   - Adjusted to support histology labels exported from **QuPath** via `.json` files. The file should be called `tissue_hires_image.json` and stored following the
+     `def parameter_setting()` function in [stKeep/utilities.py](https://github.com/pedrocastillorosique/TFM/blob/main/stKeep/stKeep/utilities.py)  
+   - Automatically generates the `Image_cell_segmentation.txt` used for downstream analysis.  
+
+2. **[`Preprocess_Cell_module.py`](stKeep/analysis/Preprocess_Cell_module.py)**  
+   - Modified to automatically calculate **spatially variable genes (SVGs)** for each slice.  
+   - Prepares input features including spatial coordinates, histology-derived embeddings, and variable genes.  
+
+3. **[`Cell_model.py`](stKeep/analysis/Cell_model.py)**  
+   - Trains the heterogeneous graph cell module to learn both semantic and hierarchical spot/cell representations.  
+   - Training parameters are directly defined inside the script (see [Cell_model.py](https://github.com/pedrocastillorosique/TFM/blob/main/stKeep/analysis/Cell_model.py)).
+     ```bash
+     args.patience        = 90 #30
+     args.tau             = 0.3
+     args.feat_drop       = 0.2
+     args.sample_rate     = [30,1] # [Spot, gene]
+     args.attn_drop       = 0.1
+     args.lr              = 0.02
+     args.lam             = 0.1
+---
+
+### Usage
+```bash
+# Simply run and add the path to the .h5ad files for each sample:
+python run.py --inputPath ../data_DLPFC/
+```
 # Code Pull from original alogorihm stKeep
 
 ![image](https://github.com/cmzuo11/stKeep/blob/main/utilities/main-framework.png)
