@@ -20,3 +20,6 @@ Validation was performed using the ARI metric on clustering results from 12 slic
   <div align="center">
     <img width="963" height="587" alt="Application to ovarian cancer" src="https://github.com/user-attachments/assets/ded256a9-5817-420d-a5fb-8d601ed453a6" />
   </div>
+
+    **Figure.** (a) H&E-stained ovarian tumor tissue. (b) Manual annotation into border, stroma, and tumor regions.  
+      (c) Clustering results obtained with the selected algorithm. (d) 2D embedding (UMAP) visualization of spatial clusters.
