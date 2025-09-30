@@ -123,11 +123,6 @@ elif args.annotation_method == 'QuPath':
             cv2.circle(mask1, ((round(imagecol), round(imagerow))), spot_size , (1), -1)
             mask1 = mask1.astype(int)
             mask2 = mask + mask1
-        
-            # if count_status > 1000:
-            #     tiff.imsave("mask1.tiff", mask1)
-            #     tiff.imsave("mask2.tiff", mask2)
-            #     tiff.imsave("mask.tiff", mask)
                 
             if np.sum(mask2 > 1) / np.sum(mask1 > 0) > region_pro: # Check when the number of pixels cropped is greater than the 50% of the background 
                 if not check_or_not[count_status]:
