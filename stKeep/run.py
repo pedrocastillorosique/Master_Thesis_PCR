@@ -41,7 +41,6 @@ if __name__ == '__main__':
 
             # Extract the "Region" annotations if available, otherwise assign "Cluster1"
             anno = pd.DataFrame(adata.obs['Region'])
-            anno['Region'] = 'Cluster1'   # Default label if no annotation
             anno.to_csv(outPath + 'Image_cell_segmentation.txt', sep='\t', index=True) 
 
             # Determine number of clusters (ignore NaN values if present)
