@@ -19,7 +19,7 @@ if __name__ == '__main__':
     parser  =  stKeep.parameter_setting()
     args    =  parser.parse_args()
 
-    args.inputPath = "D:/Pitagoras/Spatia_seq/Dataset/ARTICULOS/DLPFC/"
+    args.inputPath = ".../Dataset/ARTICULOS/DLPFC/"
     Histmodel = "ResNet50"
     
     for i in os.listdir(args.inputPath):
