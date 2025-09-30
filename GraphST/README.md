@@ -1,4 +1,27 @@
-# Spatially informed clustering, integration, and deconvolution of spatial transcriptomics with GraphST
+# Modified GraphST:
+
+This repository is based on the original [GraphST](https://github.com/JinmiaoChenLab/GraphST) implementation by **Jinmiao Chen**, with modifications to extend its functionality.  
+
+The modifications mainly adapt the workflow for the **DLPFC 12 slices** algorithm comparison.  
+
+---
+
+## Modifications in this repository  
+
+To simplify the comparison across the **12 DLPFC slices**, this repository includes an automation script: [`run.py`](run.py).  
+This script executes the workflow step by step of **GraphST**:
+
+- Added **`run.py`** to automate the analysis of multiple `.h5ad` slices.  
+- The script iterates through all input files in a dataset folder and runs the GraphST pipeline without manual per-slice calls.  
+- Output folders are automatically created for each slice.  
+- Logging and clustering results are stored in slice-specific directories.  
+
+### Usage
+```bash
+# Simply run and add the path to the .h5ad files for each sample:
+python run.py
+```
+# Code Pull from Spatially informed clustering, integration, and deconvolution of spatial transcriptomics with GraphST
 
 [![DOI](https://zenodo.org/badge/494373596.svg)](https://zenodo.org/badge/latestdoi/494373596)
 
