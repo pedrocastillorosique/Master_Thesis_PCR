@@ -16,7 +16,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # === Path containing input .h5ad files ===
-datapath = r'D:\Pitagoras\Spatia_seq\Dataset\ARTICULOS\DLPFC\01_Original'
+datapath = r''
 
 # Loop over each file in the input directory
 for file in os.listdir(datapath):
@@ -171,4 +171,5 @@ for file in os.listdir(datapath):
 
     ax = sc.pl.umap(adata, color=domains, title=['SpaGCN'], show=False)
     plt.savefig(f"{results_path_slice}/umap_{file}.png", dpi=600)
+
     plt.close()
