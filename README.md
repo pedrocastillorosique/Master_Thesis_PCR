@@ -7,7 +7,8 @@ Validation was performed using the ARI metric on clustering results from 12 slic
 
 - **OC1.** Conduct a literature review focused on the tumor microenvironment and algorithms available for spatial RNA-seq (spaRNA-seq) data analysis.  
   <div align="center">
-    <img width="964" height="360" alt="Overview" src="https://github.com/user-attachments/assets/987422e2-43b6-4fb1-8e80-acf6caec7b4b" />
+  <img width="1332" height="750" alt="image" src="https://github.com/user-attachments/assets/f4d33024-c040-4255-9c1c-abf453ca21d8" />
+" />
   </div>
 
 - **OC2.** Compare spatial domain identification (clustering) results obtained with state-of-the-art algorithms based on classical methods, Machine Learning, and Deep Learning, using annotated spaRNA-seq datasets.  
