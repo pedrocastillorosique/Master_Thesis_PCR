@@ -38,7 +38,7 @@ This script executes the workflow step by step, calling the core modules of **st
 # Simply run and add the path to the .h5ad files for each sample:
 python run.py --inputPath ../data_DLPFC/
 ```
-# Code Pull from original alogorihm stKeep
+# Code Pull from original algorihm stKeep
 
 ![image](https://github.com/cmzuo11/stKeep/blob/main/utilities/main-framework.png)
 
