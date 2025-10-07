@@ -1,7 +1,56 @@
-# SpaGCN  v1.2.7
+# Modified SpaGCN: 
+
+This repository is based on the original [SpaGCN ](https://github.com/jianhuupenn/SpaGCN/tree/master/SpaGCN_package) implementation by **Jian Hu**, with modifications to extend its functionality.  
+The modifications mainly adapt the workflow for the **DLPFC 12 slices** algorithm comparison.  
+
+---
+
+## Modifications in this repository  
+
+To simplify the comparison across the **12 DLPFC slices**, this repository includes an automation script: [`run.py`](Master_Thesis_PCR/SpaGCN/run.py).  
+This script executes the workflow step by step, calling the core modules of **stKeep** in sequence:  
+
+- **Graph construction**
+  - `calculate_adj_matrix(coords, ..., histology=False)`
+  - Builds the **2-D spatial adjacency** from spot coordinates (optionally with histology-based weights).
+
+- **Search spatial weight**
+  - `search_l(p, adj, ...)  ->  l`
+  - Converts the spatial smoothing proportion `p ∈ [0, 1]` into SpaGCN’s internal **`l` (lambda)**.
+
+- **Resolution search (target number of domains)**
+  - `search_res(adata, adj, l, n_clusters, ...)  ->  res`
+  - Finds the **Louvain resolution** (`res`) that yields the requested `n_clusters` for initialization.
+
+- **Model / training / prediction**
+  ```python
+  clf = SpaGCN()
+  clf.set_l(l)
+  clf.train(
+      adata, adj,
+      init_spa=True,      # use spatial structure at init
+      init="louvain",     # initialize with Louvain clustering
+      res=res,            # resolution returned by search_res
+      num_pcs=50, 
+      lr=0.005,
+      max_epochs=200,
+      opt="adam", # adam or sgd
+      n_neighbors=10, #for louvain
+      res=0.4, #for louvain
+  )
+  y_pred, prob = clf.predict()
+  # store labels:
+  adata.obs["pred"] = y_pred
+
+### Usage
+```bash
+# Simply run and add the path to the .h5ad files for each sample:
+python run.py
+```
+
+# Code Pull from original algorithm SpaGCN
 
 ## SpaGCN: Integrating gene expression, spatial location and histology to identify spatial domains and spatially variable genes by graph convolutional network
-
 
 ### Jian Hu*, Xiangjie Li, Kyle Coleman, Amelia Schroeder, Nan Ma, David J. Irwin, Edward B. Lee, Russell T. Shinohara, Mingyao Li*
 
@@ -92,3 +141,4 @@ Please consider citing the following reference:
 - https://www.nature.com/articles/s41592-021-01255-8
 
 <br>
+
